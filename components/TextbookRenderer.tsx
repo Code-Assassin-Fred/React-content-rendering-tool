@@ -15,15 +15,14 @@ export default function TextbookRenderer({ content }: Props) {
     const el = ref.current;
     if (!el) return;
 
+    // Generate TOC from headings
     const headings = el.querySelectorAll("h1, h2, h3, h4");
     const list: { id: string; text: string }[] = [];
 
     headings.forEach((h, i) => {
       const id = `h-${i}`;
       h.id = id;
-
       if (!h.textContent) return;
-
       list.push({ id, text: h.textContent });
       h.className =
         h.tagName === "H1"
@@ -35,6 +34,7 @@ export default function TextbookRenderer({ content }: Props) {
 
     setToc(list);
 
+    // Apply classes to other elements
     el.querySelectorAll("p").forEach((p) => {
       if (!p.className) p.className = "my-3 leading-relaxed";
     });
@@ -75,6 +75,7 @@ export default function TextbookRenderer({ content }: Props) {
 
   return (
     <div className="flex gap-6">
+      {/* Table of Contents */}
       <aside className="w-64 p-4 bg-gray-50 border overflow-auto h-screen sticky top-0">
         <h2 className="font-bold text-lg mb-2">Contents</h2>
         <ul className="space-y-1">
@@ -88,6 +89,7 @@ export default function TextbookRenderer({ content }: Props) {
         </ul>
       </aside>
 
+      {/* Rendered HTML */}
       <main
         ref={ref}
         className="prose max-w-4xl"
