@@ -40,7 +40,6 @@ export default function GeneratePage() {
   // ---- Update subjects when grade changes ----
   useEffect(() => {
     if (!selectedGrade) return;
-
     const subjectsList = Object.keys(
       (contentJson as GradeMap)[selectedGrade] || {}
     );
@@ -51,7 +50,6 @@ export default function GeneratePage() {
   // ---- Update strands when subject changes ----
   useEffect(() => {
     if (!selectedGrade || !selectedSubject) return;
-
     const strandsObj =
       (contentJson as GradeMap)[selectedGrade][selectedSubject].Strands;
     const strandsList = Object.keys(strandsObj || {});
@@ -91,17 +89,17 @@ export default function GeneratePage() {
   // ---- Render ----
   return (
     <div className="p-6 flex flex-col gap-6">
-      {/* Controls */}
-      <div className="flex flex-col md:flex-row gap-4 items-start">
+      {/* Toolbar Card */}
+      <div className="sticky top-0 z-10 bg-white shadow-md rounded-lg p-4 flex flex-col md:flex-row md:items-center gap-4 md:gap-6">
         {/* Dropdowns */}
-        <div className="flex gap-4 flex-wrap">
+        <div className="flex gap-4 flex-wrap flex-1">
           {/* Grade */}
-          <div>
-            <label className="block mb-1 font-semibold">Grade</label>
+          <div className="flex flex-col flex-1 min-w-[100px]">
+            <label className="font-semibold mb-1">Grade</label>
             <select
               value={selectedGrade}
               onChange={(e) => setSelectedGrade(e.target.value)}
-              className="border rounded p-2"
+              className="border-gray-300 border rounded-lg p-3 focus:ring-2 focus:ring-blue-400"
             >
               {grades.map((g) => (
                 <option key={g} value={g}>
@@ -112,12 +110,12 @@ export default function GeneratePage() {
           </div>
 
           {/* Subject */}
-          <div>
-            <label className="block mb-1 font-semibold">Subject</label>
+          <div className="flex flex-col flex-1 min-w-[120px]">
+            <label className="font-semibold mb-1">Subject</label>
             <select
               value={selectedSubject}
               onChange={(e) => setSelectedSubject(e.target.value)}
-              className="border rounded p-2"
+              className="border-gray-300 border rounded-lg p-3 focus:ring-2 focus:ring-blue-400"
             >
               {subjects.map((s) => (
                 <option key={s} value={s}>
@@ -128,12 +126,12 @@ export default function GeneratePage() {
           </div>
 
           {/* Strand */}
-          <div>
-            <label className="block mb-1 font-semibold">Strand</label>
+          <div className="flex flex-col flex-1 min-w-[140px]">
+            <label className="font-semibold mb-1">Strand</label>
             <select
               value={selectedStrand}
               onChange={(e) => setSelectedStrand(e.target.value)}
-              className="border rounded p-2"
+              className="border-gray-300 border rounded-lg p-3 focus:ring-2 focus:ring-blue-400"
             >
               {strands.map((s) => (
                 <option key={s} value={s}>
@@ -144,11 +142,11 @@ export default function GeneratePage() {
           </div>
         </div>
 
-        {/* Generate button */}
-        <div className="self-end">
+        {/* Generate Button */}
+        <div>
           <button
             onClick={generateStrand}
-            className="px-4 py-2 bg-blue-600 text-white rounded"
+            className="bg-blue-600 text-white px-5 py-3 rounded-lg shadow hover:bg-blue-700 disabled:opacity-50"
             disabled={loading}
           >
             {loading ? "Generating..." : "Generate Strand"}
@@ -156,20 +154,24 @@ export default function GeneratePage() {
         </div>
       </div>
 
-      {/* Mode toggle */}
+      {/* Mode Toggle */}
       {(learnerHtml || teacherHtml) && (
-        <div className="flex gap-4">
+        <div className="flex gap-4 mt-2">
           <button
-            className={`px-3 py-1 rounded ${
-              mode === "Learner" ? "bg-blue-600 text-white" : "border"
+            className={`px-4 py-2 rounded-lg font-semibold transition ${
+              mode === "Learner"
+                ? "bg-blue-600 text-white shadow"
+                : "border border-gray-300 bg-white"
             }`}
             onClick={() => setMode("Learner")}
           >
             Learner's Book
           </button>
           <button
-            className={`px-3 py-1 rounded ${
-              mode === "Teacher" ? "bg-blue-600 text-white" : "border"
+            className={`px-4 py-2 rounded-lg font-semibold transition ${
+              mode === "Teacher"
+                ? "bg-blue-600 text-white shadow"
+                : "border border-gray-300 bg-white"
             }`}
             onClick={() => setMode("Teacher")}
           >
@@ -178,8 +180,8 @@ export default function GeneratePage() {
         </div>
       )}
 
-      {/* Render HTML */}
-      <div className="border rounded p-4 overflow-auto h-[70vh]">
+      {/* Rendered Content */}
+      <div className="bg-white shadow rounded-lg p-6 overflow-auto max-h-[75vh]">
         <TextbookRenderer
           content={mode === "Learner" ? learnerHtml : teacherHtml}
         />

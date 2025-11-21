@@ -15,7 +15,6 @@ export default function TextbookRenderer({ content }: Props) {
     const el = ref.current;
     if (!el) return;
 
-    // Generate TOC from headings
     const headings = el.querySelectorAll("h1, h2, h3, h4");
     const list: { id: string; text: string }[] = [];
 
@@ -24,64 +23,70 @@ export default function TextbookRenderer({ content }: Props) {
       h.id = id;
       if (!h.textContent) return;
       list.push({ id, text: h.textContent });
+
       h.className =
         h.tagName === "H1"
-          ? "text-3xl font-bold mt-8 mb-4"
+          ? "text-4xl font-bold mt-12 mb-6 tracking-tight text-gray-900"
           : h.tagName === "H2"
-          ? "text-2xl font-semibold mt-6 mb-3"
-          : "text-xl font-semibold mt-4 mb-2";
+          ? "text-3xl font-semibold mt-10 mb-4 tracking-tight text-gray-800"
+          : h.tagName === "H3"
+          ? "text-2xl font-semibold mt-8 mb-3 text-gray-800"
+          : "text-xl font-semibold mt-6 mb-2 text-gray-700";
     });
 
     setToc(list);
 
-    // Apply classes to other elements
     el.querySelectorAll("p").forEach((p) => {
-      if (!p.className) p.className = "my-3 leading-relaxed";
+      if (!p.className)
+        p.className = "my-4 leading-relaxed text-gray-800 text-lg";
     });
 
     el.querySelectorAll("ul").forEach((ul) => {
-      ul.className = "list-disc ml-6 my-3";
+      ul.className = "list-disc ml-8 my-4 space-y-2 text-gray-800 text-lg";
     });
 
     el.querySelectorAll("ol").forEach((ol) => {
-      ol.className = "list-decimal ml-6 my-3";
+      ol.className = "list-decimal ml-8 my-4 space-y-2 text-gray-800 text-lg";
     });
 
     el.querySelectorAll("pre").forEach((pre) => {
       pre.className =
-        "bg-gray-900 text-white p-4 rounded-lg overflow-x-auto my-4";
+        "bg-gray-900 text-white p-4 rounded-xl overflow-x-auto my-6 shadow-lg";
     });
 
     el.querySelectorAll("img").forEach((img) => {
-      img.className = "mx-auto my-6 rounded-lg shadow";
+      img.className = "mx-auto my-8 rounded-xl shadow-lg";
     });
 
     el.querySelectorAll("table").forEach((table) => {
       table.className =
-        "w-full border border-gray-300 my-6 text-sm bg-white shadow";
+        "w-full border border-gray-300 my-8 text-base bg-white shadow rounded-lg overflow-hidden";
       table.querySelectorAll("th").forEach((th) => {
-        th.className = "bg-gray-100 border p-2 text-left font-semibold";
+        th.className = "bg-gray-100 border p-3 text-left font-semibold";
       });
       table.querySelectorAll("td").forEach((td) => {
-        td.className = "border p-2";
+        td.className = "border p-3";
       });
     });
 
     el.querySelectorAll("blockquote").forEach((bq) => {
       bq.className =
-        "border-l-4 border-blue-500 pl-4 italic my-4 text-gray-700";
+        "border-l-4 border-blue-500 pl-6 py-2 italic my-6 text-gray-700 bg-blue-50 rounded-r-lg";
     });
   }, [raw]);
 
   return (
-    <div className="flex gap-6">
+    <div className="flex gap-6 w-full">
       {/* Table of Contents */}
-      <aside className="w-64 p-4 bg-gray-50 border overflow-auto h-screen sticky top-0">
-        <h2 className="font-bold text-lg mb-2">Contents</h2>
-        <ul className="space-y-1">
+      <aside className="w-72 p-6 bg-gray-50 border-r overflow-auto h-screen sticky top-0 shadow-sm rounded-r-xl">
+        <h2 className="font-bold text-xl mb-4 tracking-tight text-gray-800">Contents</h2>
+        <ul className="space-y-2">
           {toc.map((item) => (
             <li key={item.id}>
-              <a href={`#${item.id}`} className="text-blue-600 hover:underline">
+              <a
+                href={`#${item.id}`}
+                className="text-blue-600 hover:underline hover:text-blue-800 text-lg"
+              >
                 {item.text}
               </a>
             </li>
@@ -92,7 +97,7 @@ export default function TextbookRenderer({ content }: Props) {
       {/* Rendered HTML */}
       <main
         ref={ref}
-        className="prose max-w-4xl"
+        className="max-w-5xl w-full bg-white shadow-xl rounded-2xl p-10 leading-relaxed tracking-wide text-gray-900"
         dangerouslySetInnerHTML={{ __html: raw }}
       />
     </div>

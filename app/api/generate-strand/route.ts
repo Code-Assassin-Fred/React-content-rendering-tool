@@ -1,4 +1,3 @@
-// app/api/generate-strand/route.ts
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import fs from "fs";
@@ -6,7 +5,6 @@ import path from "path";
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// Grade intensity mapping (like in your inspiration)
 const GRADE_INTENSITY: Record<string, string> = {
   "4": "simple, clear, age-appropriate, short sentences",
   "5": "simple, clear, age-appropriate, short sentences",
@@ -19,14 +17,13 @@ const GRADE_INTENSITY: Record<string, string> = {
   "12": "advanced academic, precise terminology, abstract reasoning"
 };
 
-// Helper to load JSON content
 const loadContentJson = () => {
   const filePath = path.join(process.cwd(), "content.json");
   const raw = fs.readFileSync(filePath, "utf-8");
   return JSON.parse(raw);
 };
 
-// Prompt generators
+// ---- NEW STRUCTURED STUDENT PROMPT ----
 const studentPrompt = (
   grade: string,
   subject: string,
@@ -36,18 +33,53 @@ const studentPrompt = (
 ) => {
   const intensity = GRADE_INTENSITY[grade] || "simple, clear language";
   const outcomesText = outcomes.join(", ");
+
   return `You are a senior Kenyan curriculum developer writing the official Grade ${grade} ${subject} Learner's Book.
 Use language appropriate for Grade ${grade}: ${intensity}.
-Explain all concepts fully. Show relationships between ideas: cause-effect, comparison, sequence, classification. Include Kenyan and global examples.
-Begin directly with the content, no stories or questions.
+Use ONLY the following HTML structure and NOTHING else:
+
+<h2>Sub-Strand Title</h2>
+<section class="learning-outcomes">
+  <h3>Learning Outcomes</h3>
+  <ul><li>...</li></ul>
+</section>
+
+<section class="key-concepts">
+  <h3>Key Concepts</h3>
+  <p>...</p>
+</section>
+
+<section class="content-explanation">
+  <h3>Content Explanation</h3>
+  <p>...</p>
+  <h4>Examples</h4>
+  <div class="example-box">
+    <ul><li>...</li></ul>
+  </div>
+</section>
+
+<section class="activity">
+  <h3>Activity</h3>
+  <p>...</p>
+  <ul><li>...</li></ul>
+</section>
+
+RULES:
+- Use <h2> ONLY for Sub-Strand title.
+- Use <h3> for main section titles.
+- Use <h4> for sub‑section titles.
+- Use <ul> and <ol> for all lists.
+- Wrap examples inside <div class="example-box">.
+- Return CLEAN HTML ONLY.
 
 Strand: ${strand}
 Sub-Strand: ${substrand}
-Strand Learning Outcomes: ${outcomesText}
+Strand Outcomes: ${outcomesText}
 
-Begin writing now. Return only clean HTML.`;
+Write the full structured content now.`;
 };
 
+// ---- NEW STRUCTURED TEACHER PROMPT ----
 const teacherPrompt = (
   grade: string,
   subject: string,
@@ -57,19 +89,71 @@ const teacherPrompt = (
 ) => {
   const intensity = GRADE_INTENSITY[grade] || "simple, clear language";
   const outcomesText = outcomes.join(", ");
-  return `You are a KICD National Trainer writing the official Teacher's Guide for Grade ${grade} ${subject}.
+
+  return `You are writing the official Teacher's Guide for Grade ${grade} ${subject}.
 Use language appropriate for Grade ${grade}: ${intensity}.
-Explain all concepts with depth, including conceptual relationships, real-world examples, and global connections.
-Use headings: Lesson Objectives, Specific Learning Outcomes, Suggested Prior Knowledge, Key Concepts and Concept Development, Teaching and Learning Experiences, Differentiation and Support for Diverse Needs, Assessment for Learning, Common Learner Errors and Misconceptions, Cross-Curricular Links, Real-Life and Community Connections.
+Use ONLY the following HTML structure:
+
+<h2>Sub-Strand Title</h2>
+<section class="lesson-objectives">
+  <h3>Lesson Objectives</h3>
+  <ul><li>...</li></ul>
+</section>
+
+<section class="prior-knowledge">
+  <h3>Suggested Prior Knowledge</h3>
+  <p>...</p>
+</section>
+
+<section class="concept-development">
+  <h3>Key Concepts & Concept Development</h3>
+  <p>...</p>
+</section>
+
+<section class="teaching-experiences">
+  <h3>Teaching & Learning Experiences</h3>
+  <ul><li>...</li></ul>
+</section>
+
+<section class="differentiation">
+  <h3>Differentiation & Support</h3>
+  <p>...</p>
+</section>
+
+<section class="assessment">
+  <h3>Assessment for Learning</h3>
+  <ul><li>...</li></ul>
+</section>
+
+<section class="misconceptions">
+  <h3>Common Errors & Misconceptions</h3>
+  <p>...</p>
+</section>
+
+<section class="cross-curricular">
+  <h3>Cross-Curricular Links</h3>
+  <p>...</p>
+</section>
+
+<section class="community-links">
+  <h3>Real-Life & Community Connections</h3>
+  <p>...</p>
+</section>
+
+RULES:
+- <h2> ONLY for the sub-strand heading.
+- <h3> ONLY for main sections.
+- <h4> ONLY for subsection headings.
+- Use <ul> for lists.
+- Return CLEAN HTML ONLY.
 
 Strand: ${strand}
 Sub-Strand: ${substrand}
 Strand Learning Outcomes: ${outcomesText}
 
-Start with Lesson Objectives. Return only clean HTML.`;
+Write the full structured Teacher's Guide now.`;
 };
 
-// Helper to call OpenAI
 const callOpenAI = async (prompt: string) => {
   const completion = await client.chat.completions.create({
     model: "gpt-4.1",
@@ -80,10 +164,10 @@ const callOpenAI = async (prompt: string) => {
     temperature: 0.35,
     max_tokens: 6000
   });
+
   return completion.choices[0]?.message?.content || "";
 };
 
-// API handler
 export async function POST(req: Request) {
   try {
     const { grade, subject, strand } = await req.json();
@@ -105,34 +189,26 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Strand not found" }, { status: 404 });
     }
 
-    const subStrands = selectedStrand.SubStrands || selectedStrand.SubStrands || selectedStrand;
+    const subStrands = selectedStrand.SubStrands || selectedStrand;
+    const student_html: string[] = [];
+    const teacher_html: string[] = [];
 
-    const studentHtmlArray: string[] = [];
-    const teacherHtmlArray: string[] = [];
-
-    // Iterate sub-strands → ONE API call per sub-strand
     for (const [subName, details] of Object.entries<any>(subStrands)) {
       const outcomes = details.Outcomes || [];
-      // Learner
-      const studentPromptText = studentPrompt(grade, subject, strand, subName, outcomes);
-      const studentHtml = await callOpenAI(studentPromptText);
-      studentHtmlArray.push(`<h2>${subName}</h2>${studentHtml}`);
 
-      // Teacher
-      const teacherPromptText = teacherPrompt(grade, subject, strand, subName, outcomes);
-      const teacherHtml = await callOpenAI(teacherPromptText);
-      teacherHtmlArray.push(`<h2>${subName}</h2>${teacherHtml}`);
+      const student = await callOpenAI(studentPrompt(grade, subject, strand, subName, outcomes));
+      const teacher = await callOpenAI(teacherPrompt(grade, subject, strand, subName, outcomes));
+
+      student_html.push(`<h2>${subName}</h2>` + student);
+      teacher_html.push(`<h2>${subName}</h2>` + teacher);
     }
-
-    const student_html = studentHtmlArray.join("\n");
-    const teacher_html = teacherHtmlArray.join("\n");
 
     return NextResponse.json({
       grade,
       subject,
       strand,
-      student_html,
-      teacher_html
+      student_html: student_html.join("\n"),
+      teacher_html: teacher_html.join("\n")
     });
   } catch (err: any) {
     console.error(err);
