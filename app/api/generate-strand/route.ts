@@ -3,7 +3,8 @@ import OpenAI from "openai";
 import fs from "fs";
 import path from "path";
 
-export const runtime = "nodejs";
+// Remove runtime export for Next.js 16 compatibility
+// export const runtime = "nodejs";
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -184,7 +185,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid grade or subject" }, { status: 400 });
     }
 
-    const strands = curriculum[grade][subject];
+    const strands = curriculum[grade][subject].Strands;
     const selectedStrand = strands[strand];
 
     if (!selectedStrand) {
