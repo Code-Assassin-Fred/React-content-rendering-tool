@@ -290,7 +290,7 @@ export default function GeneratePage() {
             </div>
 
             {/* Rendered Content */}
-            <div className="p-6 overflow-auto max-h-[70vh]">
+            <div className="p-6 overflow-auto max-h-[70vh] bg-slate-900">
               <TextbookRenderer
                 content={mode === "Learner" ? learnerHtml : teacherHtml}
               />
