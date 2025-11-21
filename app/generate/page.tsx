@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import TextbookRenderer from "@/components/TextbookRenderer";
 
 // Load the content.json dynamically
-import contentJson from "../content.json";
+import contentJson from "@/content.json";
 
 interface GradeMap {
   [grade: string]: {
