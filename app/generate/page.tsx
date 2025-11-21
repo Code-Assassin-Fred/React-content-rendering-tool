@@ -1,19 +1,28 @@
-// app/generate/page.tsx
 "use client";
 import { useState, useEffect } from "react";
 import TextbookRenderer from "@/components/TextbookRenderer";
-
-// Load the content.json dynamically
 import contentJson from "@/content.json";
+
+// ---- Types ----
+interface SubStrand {
+  Outcomes: string[];
+}
+
+interface Strand {
+  SubStrands: Record<string, SubStrand>;
+}
+
+interface Subject {
+  Strands: Record<string, Strand>;
+}
 
 interface GradeMap {
   [grade: string]: {
-    [subject: string]: {
-      SubStrands: Record<string, any>;
-    };
+    [subject: string]: Subject;
   };
 }
 
+// ---- Component ----
 export default function GeneratePage() {
   const grades = Object.keys(contentJson);
 
@@ -28,23 +37,29 @@ export default function GeneratePage() {
   const [mode, setMode] = useState<"Learner" | "Teacher">("Learner");
   const [loading, setLoading] = useState(false);
 
-  // Update subjects when grade changes
+  // ---- Update subjects when grade changes ----
   useEffect(() => {
     if (!selectedGrade) return;
-    const subjectsList = Object.keys((contentJson as GradeMap)[selectedGrade] || {});
+
+    const subjectsList = Object.keys(
+      (contentJson as GradeMap)[selectedGrade] || {}
+    );
     setSubjects(subjectsList);
     setSelectedSubject(subjectsList[0] || "");
   }, [selectedGrade]);
 
-  // Update strands when subject changes
+  // ---- Update strands when subject changes ----
   useEffect(() => {
     if (!selectedGrade || !selectedSubject) return;
-    const strandsObj = (contentJson as GradeMap)[selectedGrade][selectedSubject];
+
+    const strandsObj =
+      (contentJson as GradeMap)[selectedGrade][selectedSubject].Strands;
     const strandsList = Object.keys(strandsObj || {});
     setStrands(strandsList);
     setSelectedStrand(strandsList[0] || "");
   }, [selectedGrade, selectedSubject]);
 
+  // ---- Generate strand ----
   const generateStrand = async () => {
     if (!selectedGrade || !selectedSubject || !selectedStrand) return;
     setLoading(true);
@@ -57,8 +72,8 @@ export default function GeneratePage() {
         body: JSON.stringify({
           grade: selectedGrade,
           subject: selectedSubject,
-          strand: selectedStrand
-        })
+          strand: selectedStrand,
+        }),
       });
       const data = await res.json();
 
@@ -73,6 +88,7 @@ export default function GeneratePage() {
     }
   };
 
+  // ---- Render ----
   return (
     <div className="p-6 flex flex-col gap-6">
       {/* Controls */}
@@ -88,7 +104,9 @@ export default function GeneratePage() {
               className="border rounded p-2"
             >
               {grades.map((g) => (
-                <option key={g} value={g}>{g}</option>
+                <option key={g} value={g}>
+                  {g}
+                </option>
               ))}
             </select>
           </div>
@@ -102,7 +120,9 @@ export default function GeneratePage() {
               className="border rounded p-2"
             >
               {subjects.map((s) => (
-                <option key={s} value={s}>{s}</option>
+                <option key={s} value={s}>
+                  {s}
+                </option>
               ))}
             </select>
           </div>
@@ -116,7 +136,9 @@ export default function GeneratePage() {
               className="border rounded p-2"
             >
               {strands.map((s) => (
-                <option key={s} value={s}>{s}</option>
+                <option key={s} value={s}>
+                  {s}
+                </option>
               ))}
             </select>
           </div>
@@ -138,13 +160,17 @@ export default function GeneratePage() {
       {(learnerHtml || teacherHtml) && (
         <div className="flex gap-4">
           <button
-            className={`px-3 py-1 rounded ${mode === "Learner" ? "bg-blue-600 text-white" : "border"}`}
+            className={`px-3 py-1 rounded ${
+              mode === "Learner" ? "bg-blue-600 text-white" : "border"
+            }`}
             onClick={() => setMode("Learner")}
           >
             Learner's Book
           </button>
           <button
-            className={`px-3 py-1 rounded ${mode === "Teacher" ? "bg-blue-600 text-white" : "border"}`}
+            className={`px-3 py-1 rounded ${
+              mode === "Teacher" ? "bg-blue-600 text-white" : "border"
+            }`}
             onClick={() => setMode("Teacher")}
           >
             Teacher's Guide
@@ -154,7 +180,9 @@ export default function GeneratePage() {
 
       {/* Render HTML */}
       <div className="border rounded p-4 overflow-auto h-[70vh]">
-        <TextbookRenderer content={mode === "Learner" ? learnerHtml : teacherHtml} />
+        <TextbookRenderer
+          content={mode === "Learner" ? learnerHtml : teacherHtml}
+        />
       </div>
     </div>
   );
