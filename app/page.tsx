@@ -83,8 +83,13 @@ export default function GeneratePage() {
   // ---- Update strands when subject changes ----
   useEffect(() => {
     if (!selectedGrade || !selectedSubject) return;
-    const strandsObj =
-      (contentJson as GradeMap)[selectedGrade][selectedSubject].Strands;
+    const subjectData = (contentJson as GradeMap)[selectedGrade]?.[selectedSubject];
+    if (!subjectData) {
+      setStrands([]);
+      setSelectedStrand("");
+      return;
+    }
+    const strandsObj = subjectData.Strands;
     const strandsList = Object.keys(strandsObj || {});
     setStrands(strandsList);
     setSelectedStrand(strandsList[0] || "");

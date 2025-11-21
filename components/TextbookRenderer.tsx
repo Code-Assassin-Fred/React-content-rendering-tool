@@ -12,7 +12,7 @@ export default function TextbookRenderer({ content }: Props) {
     let html = content?.trim();
     if (!html) return { formattedHtml: '', toc: [] as Array<{ id: string; title: string; level: number }> };
 
-    // Remove stray markdown markers like **bold** or *italic* if present in raw content
+    // Remove stray markdown markers
     html = html
       .replace(/\*\*([^*]+)\*\*/g, '$1')
       .replace(/\*([^*]+)\*/g, '$1')
@@ -26,61 +26,136 @@ export default function TextbookRenderer({ content }: Props) {
     const container = document.createElement('div');
     container.innerHTML = safe;
 
-    // Normalize headings structure h2/h3/h4 as Sections / Subsections / Subtopics
+    // Track heading structure
     const headings = Array.from(container.querySelectorAll('h1, h2, h3, h4')) as HTMLHeadingElement[];
-
-    // We'll number h2 as 1,2,3...; h3 as 1.1, 1.2; h4 as 1.1.1 etc.
-    let h2Count = 0;
-    let h3Count = 0;
-    let h4Count = 0;
+    
+    let subStrandCount = 0;
+    let sectionCount = 0;
     const tocItems: Array<{ id: string; title: string; level: number }> = [];
+    let currentSubStrandCard: HTMLDivElement | null = null;
 
     headings.forEach((h) => {
       const level = parseInt(h.tagName.substring(1), 10);
+      const text = h.textContent?.trim() || '';
 
-      if (level === 1) {
-        // Demote h1 to h2 to keep a single consistent top-level per page
-        const newH = document.createElement('h2');
-        newH.innerHTML = h.innerHTML;
-        h.replaceWith(newH);
-        h2Count += 1; h3Count = 0; h4Count = 0;
-        const id = `section-${h2Count}-${slugify(newH.textContent || '')}`;
-        newH.id = id;
-        newH.classList.add('mt-8','mb-3','scroll-mt-24','border-b','border-white/10','pb-1');
-        newH.innerHTML = `<span class="text-blue-400 mr-2">${h2Count}.</span>${newH.innerHTML}`;
-        tocItems.push({ id, title: newH.textContent || `Section ${h2Count}`, level: 2 });
+      // Detect SubStrands (H2 level - major topics)
+      if (level === 2 || level === 1) {
+        subStrandCount += 1;
+        sectionCount = 0;
+        const id = `substrand-${subStrandCount}-${slugify(text)}`;
+        
+        // Create a card wrapper for this substrand
+        const card = document.createElement('div');
+        card.className = 'mb-8 rounded-xl bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-white/10 overflow-hidden shadow-lg';
+        card.id = id;
+        
+        // Create header section with gradient
+        const header = document.createElement('div');
+        header.className = 'bg-gradient-to-r from-blue-600/20 to-purple-600/20 border-b border-white/10 p-5';
+        
+        const titleWrapper = document.createElement('div');
+        titleWrapper.className = 'flex items-center gap-3';
+        
+        const badge = document.createElement('div');
+        badge.className = 'flex items-center justify-center w-10 h-10 rounded-lg bg-blue-500/20 text-blue-300 font-bold text-sm border border-blue-400/30';
+        badge.textContent = `${subStrandCount}`;
+        
+        const title = document.createElement('h2');
+        title.className = 'text-2xl font-bold text-white m-0';
+        title.textContent = text;
+        
+        titleWrapper.appendChild(badge);
+        titleWrapper.appendChild(title);
+        header.appendChild(titleWrapper);
+        card.appendChild(header);
+        
+        // Create content container for this substrand
+        const contentContainer = document.createElement('div');
+        contentContainer.className = 'p-6 space-y-6';
+        card.appendChild(contentContainer);
+        
+        // Replace the heading with the card
+        h.replaceWith(card);
+        currentSubStrandCard = contentContainer;
+        
+        tocItems.push({ id, title: text, level: 2 });
         return;
       }
 
-      if (level === 2) {
-        h2Count += 1; h3Count = 0; h4Count = 0;
-        const id = `section-${h2Count}-${slugify(h.textContent || '')}`;
-        h.id = id;
-        h.classList.add('mt-8','mb-3','scroll-mt-24','border-b','border-white/10','pb-1');
-        h.innerHTML = `<span class="text-blue-400 mr-2">${h2Count}.</span>${h.innerHTML}`;
-        tocItems.push({ id, title: h.textContent || `Section ${h2Count}`, level: 2 });
-        return;
-      }
-
+      // Sections within substrand (H3 - Learning Outcomes, Key Concepts, etc.)
       if (level === 3) {
-        h3Count += 1; h4Count = 0;
-        const id = `section-${h2Count}-${h3Count}-${slugify(h.textContent || '')}`;
-        h.id = id;
-        h.classList.add('mt-6','mb-2','scroll-mt-24');
-        h.innerHTML = `<span class="text-sky-300 mr-2">${h2Count}.${h3Count}</span> ${h.innerHTML}`;
-        tocItems.push({ id, title: h.textContent || `Section ${h2Count}.${h3Count}`, level: 3 });
+        sectionCount += 1;
+        const id = `section-${subStrandCount}-${sectionCount}-${slugify(text)}`;
+        
+        // Create section card
+        const sectionCard = document.createElement('div');
+        sectionCard.className = 'rounded-lg bg-white/5 border border-white/10 p-4';
+        sectionCard.id = id;
+        
+        const sectionTitle = document.createElement('h3');
+        sectionTitle.className = 'text-lg font-semibold text-sky-300 mb-3 flex items-center gap-2';
+        
+        // Add icon based on section type
+        const icon = getSectionIcon(text);
+        if (icon) {
+          const iconSpan = document.createElement('span');
+          iconSpan.innerHTML = icon;
+          sectionTitle.appendChild(iconSpan);
+        }
+        
+        const titleText = document.createElement('span');
+        titleText.textContent = text;
+        sectionTitle.appendChild(titleText);
+        
+        sectionCard.appendChild(sectionTitle);
+        
+        // Create content area for this section
+        const sectionContent = document.createElement('div');
+        sectionContent.className = 'space-y-2';
+        sectionCard.appendChild(sectionContent);
+        
+        // Append to current substrand card or container
+        if (currentSubStrandCard) {
+          currentSubStrandCard.appendChild(sectionCard);
+        } else {
+          h.replaceWith(sectionCard);
+        }
+        
+        // Store reference to append following content
+        h.setAttribute('data-section-container', 'true');
+        h.replaceWith(sectionCard);
+        
+        tocItems.push({ id, title: text, level: 3 });
         return;
       }
 
+      // Subsections (H4)
       if (level === 4) {
-        h4Count += 1;
-        const id = `section-${h2Count}-${h3Count}-${h4Count}-${slugify(h.textContent || '')}`;
-        h.id = id;
-        h.classList.add('mt-4','mb-1.5','scroll-mt-24');
-        h.innerHTML = `<span class="text-teal-300 mr-2">${h2Count}.${h3Count}.${h4Count}</span> ${h.innerHTML}`;
-        tocItems.push({ id, title: h.textContent || `Section ${h2Count}.${h3Count}.${h4Count}`, level: 4 });
+        h.classList.add('text-base','font-medium','text-teal-300','mt-3','mb-2');
+        return;
       }
     });
+
+    // Helper function to get section icons
+    function getSectionIcon(sectionName: string): string {
+      const name = sectionName.toLowerCase();
+      if (name.includes('learning outcomes') || name.includes('outcome')) {
+        return '🎯';
+      }
+      if (name.includes('key concepts') || name.includes('concept')) {
+        return '💡';
+      }
+      if (name.includes('explanation') || name.includes('content')) {
+        return '📖';
+      }
+      if (name.includes('example')) {
+        return '✏️';
+      }
+      if (name.includes('activity') || name.includes('exercise')) {
+        return '🎨';
+      }
+      return '📌';
+    }
 
     // 3) Wrap images and tables to be responsive
     container.querySelectorAll('img').forEach((img) => {
