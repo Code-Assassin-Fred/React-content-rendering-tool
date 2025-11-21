@@ -65,7 +65,7 @@ export default function GeneratePage() {
     setTeacherHtml("");
 
     try {
-      const res = await fetch("/api/generate-strand", {
+      const res = await fetch("/api/generate-strand/", {
         method: "POST",
         body: JSON.stringify({
           grade: selectedGrade,
