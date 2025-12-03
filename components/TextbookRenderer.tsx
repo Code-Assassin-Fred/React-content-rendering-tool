@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useMemo } from "react";
-import { sanitize } from "@/lib/sanitize";
 
 interface Props {
   content: string;
@@ -17,17 +16,15 @@ export default function TextbookRenderer({ content }: Props) {
       };
     }
 
-    // 1. Remove stray markdown
+    // Remove markdown
     html = html
       .replace(/\*\*([^*]+)\*\*/g, "$1")
       .replace(/\*([^*]+)\*/g, "$1")
       .replace(/__([^_]+)__/g, "$1")
       .replace(/_([^_]+)_/g, "$1");
 
-    // 2. Sanitize
-    const safe = sanitize(html);
+    const safe = html;
 
-    // 3. Transform DOM
     const container = document.createElement("div");
     container.innerHTML = safe;
 
@@ -45,7 +42,7 @@ export default function TextbookRenderer({ content }: Props) {
       const level = parseInt(h.tagName.charAt(1), 10);
       const text = h.textContent?.trim() || "";
 
-      // ---------- Sub-strand cards (h1 or h2) ----------
+      // H1/H2 → Card
       if (level === 1 || level === 2) {
         h2Count += 1;
         h3Count = 0;
@@ -55,16 +52,16 @@ export default function TextbookRenderer({ content }: Props) {
 
         const card = document.createElement("div");
         card.className =
-          "substrand-card mb-12 rounded-2xl bg-gradient-to-br from-[#1a1a2e] to-[#16213e] border border-white/10 overflow-hidden shadow-2xl";
+          "substrand-card mb-12 rounded-2xl bg-[#1a1a2e] border border-white/10 shadow-2xl";
         card.id = id;
 
         const header = document.createElement("div");
         header.className =
-          "bg-gradient-to-r from-[#7c3aed]/20 to-[#a855f7]/20 border-b border-white/10 px-8 py-6 flex items-center gap-5";
+          "bg-[#2a2a45] border-b border-white/10 px-8 py-6 flex items-center gap-5";
 
         const badge = document.createElement("div");
         badge.className =
-          "flex items-center justify-center w-14 h-14 rounded-2xl bg-[#7c3aed]/30 text-[#c4b5fd] text-2xl font-bold border border-[#7c3aed]/50 backdrop-blur-sm";
+          "flex items-center justify-center w-14 h-14 rounded-2xl bg-[#7c3aed]/40 text-[#c4b5fd] text-2xl font-bold";
         badge.textContent = `${h2Count}`;
 
         const title = document.createElement("h2");
@@ -79,13 +76,10 @@ export default function TextbookRenderer({ content }: Props) {
         body.className = "p-8 space-y-8";
         card.appendChild(body);
 
-        // Move everything until next heading into this card
+        // Move everything until next heading
         let sibling = h.nextElementSibling;
         h.replaceWith(card);
-        while (
-          sibling &&
-          !headings.includes(sibling as HTMLHeadingElement)
-        ) {
+        while (sibling && !headings.includes(sibling as any)) {
           const next = sibling.nextElementSibling;
           body.appendChild(sibling);
           sibling = next;
@@ -95,29 +89,31 @@ export default function TextbookRenderer({ content }: Props) {
         return;
       }
 
-      // ---------- Section h3 ----------
+      // H3
       if (level === 3) {
         h3Count += 1;
         h4Count = 0;
-        const id = `section-${h2Count}-${h3Count}-${slugify(text)}`;
 
+        const id = `section-${h2Count}-${h3Count}-${slugify(text)}`;
         h.id = id;
         h.className =
           "text-2xl font-bold text-sky-300 mt-10 mb-4 flex items-center gap-3 scroll-mt-32";
-        h.innerHTML = `<span class="font-bold">${h2Count}.${h3Count}</span> ${h.innerHTML}`;
+        h.innerHTML = `<span>${h2Count}.${h3Count}</span> ${h.innerHTML}`;
 
         tocItems.push({ id, title: text, level: 3 });
         return;
       }
 
-      // ---------- Subsection h4 ----------
+      // H4
       if (level === 4) {
         h4Count += 1;
-        const id = `subsection-${h2Count}-${h3Count}-${h4Count}-${slugify(text)}`;
+
+        const id = `sub-${h2Count}-${h3Count}-${h4Count}-${slugify(text)}`;
         h.id = id;
         h.className =
           "text-xl font-semibold text-teal-300 mt-8 mb-3 flex items-center gap-3 scroll-mt-32";
-        h.innerHTML = `<span class="text-teal-300">${h2Count}.${h3Count}.${h4Count}</span> ${h.innerHTML}`;
+        h.innerHTML = `<span>${h2Count}.${h3Count}.${h4Count}</span> ${h.innerHTML}`;
+
         tocItems.push({ id, title: text, level: 4 });
       }
     });
@@ -146,60 +142,31 @@ export default function TextbookRenderer({ content }: Props) {
       wrapper.appendChild(table);
 
       table.className = "w-full text-left border-collapse";
-      table.querySelector("thead")?.classList.add("bg-white/5");
+      table.querySelector("thead")?.classList.add("bg-white/10");
 
       table.querySelectorAll("th").forEach((th) =>
-        th.classList.add("px-5", "py-4", "font-bold", "text-white", "border-b", "border-white/10")
+        th.classList.add("px-5", "py-4", "font-bold", "text-white", "border-b")
       );
       table.querySelectorAll("td").forEach((td) =>
-        td.classList.add("px-5", "py-4", "text-white/80", "border", "border-white/10")
+        td.classList.add("px-5", "py-4", "text-white/80", "border")
       );
-
-      table.querySelectorAll("tbody tr").forEach((tr, i) => {
-        if (i % 2 === 1) tr.classList.add("bg-white/[0.03]");
-      });
     });
 
-    // Paragraphs & lists
-    container.querySelectorAll("p").forEach((p) =>
-      p.classList.add("my-4", "leading-relaxed", "text-white/90")
-    );
+    // Paragraphs
+    container
+      .querySelectorAll("p")
+      .forEach((p) => p.classList.add("my-4", "leading-relaxed", "text-white/90"));
+
+    // Lists
     container.querySelectorAll("ul, ol").forEach((list) =>
-      list.classList.add("my-4", "space-y-2", "text-white/90", list.tagName === "UL" ? "list-disc" : "list-decimal", "list-inside")
+      list.classList.add(
+        "my-4",
+        "space-y-2",
+        "text-white/90",
+        list.tagName === "UL" ? "list-disc" : "list-decimal",
+        "list-inside"
+      )
     );
-
-    // Pedagogical callouts
-    container.querySelectorAll("p").forEach((p) => {
-      const text = p.textContent?.trim().toLowerCase() || "";
-      const map: Record<string, { class: string; label: string }> = {
-        "note:": { class: "bg-cyan-900/30 border-l-4 border-cyan-500", label: "Note" },
-        "tip:": { class: "bg-sky-900/30 border-l-4 border-sky-500", label: "Tip" },
-        "example:": { class: "bg-blue-900/30 border-l-4 border-blue-500", label: "Example" },
-        "key takeaway:": { class: "bg-emerald-900/30 border-l-4 border-emerald-500", label: "Key Takeaway" },
-        "activity:": { class: "bg-amber-900/30 border-l-4 border-amber-500", label: "Activity" },
-        "exercise:": { class: "bg-amber-900/30 border-l-4 border-amber-500", label: "Exercise" },
-      };
-
-      for (const [key, style] of Object.entries(map)) {
-        if (text.startsWith(key)) {
-          const box = document.createElement("div");
-          box.className = `my-6 p-5 rounded-xl ${style.class} backdrop-blur-sm`;
-
-          const label = document.createElement("div");
-          label.className = "text-xs font-bold uppercase tracking-wider text-white/70 mb-2";
-          label.textContent = style.label;
-
-          const contentDiv = document.createElement("div");
-          contentDiv.className = "text-white/90";
-          contentDiv.textContent = p.textContent?.trim().slice(key.length).trimStart() || "";
-
-          box.appendChild(label);
-          box.appendChild(contentDiv);
-          p.replaceWith(box);
-          break;
-        }
-      }
-    });
 
     return { formattedHtml: container.innerHTML, toc: tocItems };
   }, [content]);
@@ -214,38 +181,41 @@ export default function TextbookRenderer({ content }: Props) {
   }
 
   return (
-    <div className="text-white">
-      {/* Table of Contents */}
+    <div className="text-white flex gap-10">
       {toc.length > 0 && (
-        <aside className="sticky top-6 mb-12 p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
+        <aside className="sticky top-6 h-fit w-64 p-6 rounded-2xl bg-[#111] border border-white/10">
           <div className="text-sm font-bold uppercase tracking-wider text-white/60 mb-4">
             Table of Contents
           </div>
+
           <nav className="space-y-2">
-            {toc.map((item, idx) => (
-              <div
-                key={item.id}
-                className={`pl-${item.level === 2 ? "0" : item.level === 3 ? "6" : "12"}`}
-              >
-                <a
-                  href={`#${item.id}`}
-                  className="block py-1 text-white/80 hover:text-white transition-colors"
-                >
-                  {item.level === 2 && (
-                    <span className="font-semibold text-[#c4b5fd] mr-2">
-                      {idx + 1}.
-                    </span>
-                  )}
-                  {item.title}
-                </a>
-              </div>
-            ))}
+            {toc.map((item, index) => {
+              const padding =
+                item.level === 2 ? "pl-0" : item.level === 3 ? "pl-6" : "pl-12";
+
+              return (
+                <div key={item.id} className={padding}>
+                  <a
+                    href={`#${item.id}`}
+                    className="block py-1 text-white/80 hover:text-white transition-colors"
+                  >
+                    {item.level === 2 && (
+                      <span className="text-[#c4b5fd] font-semibold mr-2">
+                        {index + 1}.
+                      </span>
+                    )}
+                    {item.title}
+                  </a>
+                </div>
+              );
+            })}
           </nav>
         </aside>
       )}
 
-      {/* Rendered content */}
-      <div dangerouslySetInnerHTML={{ __html: formattedHtml }} />
+      <main className="flex-1 min-w-0">
+        <div dangerouslySetInnerHTML={{ __html: formattedHtml }} />
+      </main>
     </div>
   );
 }
