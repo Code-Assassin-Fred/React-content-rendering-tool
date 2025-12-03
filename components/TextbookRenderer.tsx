@@ -1,4 +1,6 @@
+// components/TextbookRenderer.tsx
 "use client";
+
 import React, { useMemo } from "react";
 import { sanitize } from "@/lib/sanitize";
 
@@ -9,213 +11,242 @@ interface Props {
 export default function TextbookRenderer({ content }: Props) {
   const { formattedHtml, toc } = useMemo(() => {
     let html = content?.trim();
-    if (!html)
-      return { formattedHtml: "", toc: [] as Array<{ id: string; title: string; level: number }> };
+    if (!html) {
+      return {
+        formattedHtml: "",
+        toc: [] as Array<{ id: string; title: string; level: number }>,
+      };
+    }
 
-    // Strip markdown
+    // 1. Remove stray markdown
     html = html
       .replace(/\*\*([^*]+)\*\*/g, "$1")
       .replace(/\*([^*]+)\*/g, "$1")
       .replace(/__([^_]+)__/g, "$1")
       .replace(/_([^_]+)_/g, "$1");
 
+    // 2. Sanitize
     const safe = sanitize(html);
+
+    // 3. Transform DOM
     const container = document.createElement("div");
     container.innerHTML = safe;
 
-    const headings = Array.from(container.querySelectorAll("h1, h2, h3, h4")) as HTMLHeadingElement[];
-    let subStrandCount = 0;
-    let sectionCount = 0;
+    const headings = Array.from(
+      container.querySelectorAll("h1, h2, h3, h4")
+    ) as HTMLHeadingElement[];
+
+    let h2Count = 0;
+    let h3Count = 0;
+    let h4Count = 0;
+
     const tocItems: Array<{ id: string; title: string; level: number }> = [];
-    let currentSubStrandCard: HTMLDivElement | null = null;
 
     headings.forEach((h) => {
-      const level = parseInt(h.tagName.substring(1), 10);
+      const level = parseInt(h.tagName.charAt(1), 10);
       const text = h.textContent?.trim() || "";
 
-      // SubStrand H2
-      if (level === 2) {
-        subStrandCount += 1;
-        sectionCount = 0;
-        const id = `substrand-${subStrandCount}-${slugify(text)}`;
+      // ---------- Sub-strand cards (h1 or h2) ----------
+      if (level === 1 || level === 2) {
+        h2Count += 1;
+        h3Count = 0;
+        h4Count = 0;
 
-        // Only create card if not already wrapped
-        if (!h.parentElement?.classList.contains("substrand-card")) {
-          const card = document.createElement("div");
-          card.className =
-            "substrand-card mb-8 rounded-xl bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-white/10 overflow-hidden shadow-lg";
-          card.id = id;
+        const id = `substrand-${h2Count}-${slugify(text)}`;
 
-          // Header
-          const header = document.createElement("div");
-          header.className = "bg-gradient-to-r from-blue-600/20 to-purple-600/20 border-b border-white/10 p-5 flex items-center gap-3";
+        const card = document.createElement("div");
+        card.className =
+          "substrand-card mb-12 rounded-2xl bg-gradient-to-br from-[#1a1a2e] to-[#16213e] border border-white/10 overflow-hidden shadow-2xl";
+        card.id = id;
 
-          const badge = document.createElement("div");
-          badge.className = "flex items-center justify-center w-10 h-10 rounded-lg bg-blue-500/20 text-blue-300 font-bold text-sm border border-blue-400/30";
-          badge.textContent = `${subStrandCount}`;
+        const header = document.createElement("div");
+        header.className =
+          "bg-gradient-to-r from-[#7c3aed]/20 to-[#a855f7]/20 border-b border-white/10 px-8 py-6 flex items-center gap-5";
 
-          const title = document.createElement("h2");
-          title.className = "text-2xl font-bold text-white m-0";
-          title.textContent = text;
+        const badge = document.createElement("div");
+        badge.className =
+          "flex items-center justify-center w-14 h-14 rounded-2xl bg-[#7c3aed]/30 text-[#c4b5fd] text-2xl font-bold border border-[#7c3aed]/50 backdrop-blur-sm";
+        badge.textContent = `${h2Count}`;
 
-          header.appendChild(badge);
-          header.appendChild(title);
-          card.appendChild(header);
+        const title = document.createElement("h2");
+        title.className = "text-3xl font-bold text-white m-0";
+        title.textContent = text;
 
-          const contentContainer = document.createElement("div");
-          contentContainer.className = "p-6 space-y-6 max-h-[70vh] overflow-y-auto";
-          card.appendChild(contentContainer);
+        header.appendChild(badge);
+        header.appendChild(title);
+        card.appendChild(header);
 
-          h.replaceWith(card);
-          currentSubStrandCard = contentContainer;
-        } else {
-          currentSubStrandCard = h.parentElement.querySelector(":scope > div:last-child") as HTMLDivElement;
+        const body = document.createElement("div");
+        body.className = "p-8 space-y-8";
+        card.appendChild(body);
+
+        // Move everything until next heading into this card
+        let sibling = h.nextElementSibling;
+        h.replaceWith(card);
+        while (
+          sibling &&
+          !headings.includes(sibling as HTMLHeadingElement)
+        ) {
+          const next = sibling.nextElementSibling;
+          body.appendChild(sibling);
+          sibling = next;
         }
 
         tocItems.push({ id, title: text, level: 2 });
         return;
       }
 
-      // Section H3
+      // ---------- Section h3 ----------
       if (level === 3) {
-        sectionCount += 1;
-        const id = `section-${subStrandCount}-${sectionCount}-${slugify(text)}`;
+        h3Count += 1;
+        h4Count = 0;
+        const id = `section-${h2Count}-${h3Count}-${slugify(text)}`;
 
-        const sectionCard = document.createElement("div");
-        sectionCard.className = "rounded-lg bg-white/5 border border-white/10 p-4";
-        sectionCard.id = id;
+        h.id = id;
+        h.className =
+          "text-2xl font-bold text-sky-300 mt-10 mb-4 flex items-center gap-3 scroll-mt-32";
+        h.innerHTML = `<span class="font-bold">${h2Count}.${h3Count}</span> ${h.innerHTML}`;
 
-        const sectionTitle = document.createElement("h3");
-        sectionTitle.className = "text-lg font-semibold text-sky-300 mb-3 flex items-center gap-2";
-
-        const icon = getSectionIcon(text);
-        if (icon) {
-          const iconSpan = document.createElement("span");
-          iconSpan.innerHTML = icon;
-          sectionTitle.appendChild(iconSpan);
-        }
-
-        const titleText = document.createElement("span");
-        titleText.textContent = text;
-        sectionTitle.appendChild(titleText);
-
-        sectionCard.appendChild(sectionTitle);
-
-        const sectionContent = document.createElement("div");
-        sectionContent.className = "space-y-2";
-        sectionCard.appendChild(sectionContent);
-
-        if (currentSubStrandCard) {
-          currentSubStrandCard.appendChild(sectionCard);
-        } else {
-          h.replaceWith(sectionCard);
-        }
-
-        h.replaceWith(sectionCard);
         tocItems.push({ id, title: text, level: 3 });
         return;
       }
 
-      // Subsection H4
+      // ---------- Subsection h4 ----------
       if (level === 4) {
-        h.classList.add("text-base", "font-medium", "text-teal-300", "mt-3", "mb-2");
-        return;
+        h4Count += 1;
+        const id = `subsection-${h2Count}-${h3Count}-${h4Count}-${slugify(text)}`;
+        h.id = id;
+        h.className =
+          "text-xl font-semibold text-teal-300 mt-8 mb-3 flex items-center gap-3 scroll-mt-32";
+        h.innerHTML = `<span class="text-teal-300">${h2Count}.${h3Count}.${h4Count}</span> ${h.innerHTML}`;
+        tocItems.push({ id, title: text, level: 4 });
       }
     });
 
-    // Style images
+    // Images
     container.querySelectorAll("img").forEach((img) => {
-      img.classList.add("rounded-md", "mx-auto", "block", "max-w-full", "h-auto");
+      img.className = "rounded-xl mx-auto block max-w-full h-auto shadow-lg";
       const wrapper = document.createElement("figure");
-      wrapper.className = "my-4";
+      wrapper.className = "my-8 text-center";
       img.parentElement?.insertBefore(wrapper, img);
       wrapper.appendChild(img);
 
-      if (img.getAttribute("alt") && !wrapper.querySelector("figcaption")) {
+      if (img.alt) {
         const cap = document.createElement("figcaption");
-        cap.className = "text-xs text-white/60 mt-2 text-center";
-        cap.textContent = img.getAttribute("alt") || "";
+        cap.className = "mt-3 text-sm text-white/60 italic";
+        cap.textContent = img.alt;
         wrapper.appendChild(cap);
       }
     });
 
-    // Style tables
+    // Tables
     container.querySelectorAll("table").forEach((table) => {
-      const scroll = document.createElement("div");
-      scroll.className = "overflow-x-auto my-4";
-      table.parentElement?.insertBefore(scroll, table);
-      scroll.appendChild(table);
+      const wrapper = document.createElement("div");
+      wrapper.className = "overflow-x-auto my-8 rounded-xl border border-white/10";
+      table.parentElement?.insertBefore(wrapper, table);
+      wrapper.appendChild(table);
 
-      table.classList.add("w-full", "text-left", "border-collapse");
-      const thead = table.querySelector("thead");
-      if (thead) thead.classList.add("bg-white/5");
-      table.querySelectorAll("th").forEach((th) => th.classList.add("px-3", "py-2", "font-semibold", "text-white", "border-b", "border-white/10"));
-      table.querySelectorAll("td").forEach((td) => td.classList.add("px-3", "py-2", "text-white/80", "border-b", "border-white/10"));
-      Array.from(table.querySelectorAll("tbody tr")).forEach((tr, idx) => {
-        if (idx % 2 === 1) tr.classList.add("bg-white/[0.03]");
+      table.className = "w-full text-left border-collapse";
+      table.querySelector("thead")?.classList.add("bg-white/5");
+
+      table.querySelectorAll("th").forEach((th) =>
+        th.classList.add("px-5", "py-4", "font-bold", "text-white", "border-b", "border-white/10")
+      );
+      table.querySelectorAll("td").forEach((td) =>
+        td.classList.add("px-5", "py-4", "text-white/80", "border", "border-white/10")
+      );
+
+      table.querySelectorAll("tbody tr").forEach((tr, i) => {
+        if (i % 2 === 1) tr.classList.add("bg-white/[0.03]");
       });
     });
 
     // Paragraphs & lists
-    container.querySelectorAll("p").forEach((p) => p.classList.add("my-3", "leading-relaxed", "text-white/90"));
-    container.querySelectorAll("ul").forEach((ul) => ul.classList.add("list-disc", "pl-6", "my-3", "space-y-2"));
-    container.querySelectorAll("ol").forEach((ol) => ol.classList.add("list-decimal", "pl-6", "my-3", "space-y-2"));
-    container.querySelectorAll("li").forEach((li) => li.classList.add("leading-relaxed"));
+    container.querySelectorAll("p").forEach((p) =>
+      p.classList.add("my-4", "leading-relaxed", "text-white/90")
+    );
+    container.querySelectorAll("ul, ol").forEach((list) =>
+      list.classList.add("my-4", "space-y-2", "text-white/90", list.tagName === "UL" ? "list-disc" : "list-decimal", "list-inside")
+    );
+
+    // Pedagogical callouts
+    container.querySelectorAll("p").forEach((p) => {
+      const text = p.textContent?.trim().toLowerCase() || "";
+      const map: Record<string, { class: string; label: string }> = {
+        "note:": { class: "bg-cyan-900/30 border-l-4 border-cyan-500", label: "Note" },
+        "tip:": { class: "bg-sky-900/30 border-l-4 border-sky-500", label: "Tip" },
+        "example:": { class: "bg-blue-900/30 border-l-4 border-blue-500", label: "Example" },
+        "key takeaway:": { class: "bg-emerald-900/30 border-l-4 border-emerald-500", label: "Key Takeaway" },
+        "activity:": { class: "bg-amber-900/30 border-l-4 border-amber-500", label: "Activity" },
+        "exercise:": { class: "bg-amber-900/30 border-l-4 border-amber-500", label: "Exercise" },
+      };
+
+      for (const [key, style] of Object.entries(map)) {
+        if (text.startsWith(key)) {
+          const box = document.createElement("div");
+          box.className = `my-6 p-5 rounded-xl ${style.class} backdrop-blur-sm`;
+
+          const label = document.createElement("div");
+          label.className = "text-xs font-bold uppercase tracking-wider text-white/70 mb-2";
+          label.textContent = style.label;
+
+          const contentDiv = document.createElement("div");
+          contentDiv.className = "text-white/90";
+          contentDiv.textContent = p.textContent?.trim().slice(key.length).trimStart() || "";
+
+          box.appendChild(label);
+          box.appendChild(contentDiv);
+          p.replaceWith(box);
+          break;
+        }
+      }
+    });
 
     return { formattedHtml: container.innerHTML, toc: tocItems };
   }, [content]);
 
   function slugify(text: string) {
-    return text.toLowerCase().replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").slice(0, 60);
-  }
-
-  function getSectionIcon(sectionName: string): string {
-    const name = sectionName.toLowerCase();
-    if (name.includes("learning outcomes") || name.includes("outcome")) return "🎯";
-    if (name.includes("key concepts") || name.includes("concept")) return "💡";
-    if (name.includes("explanation") || name.includes("content")) return "📖";
-    if (name.includes("example")) return "✏️";
-    if (name.includes("activity") || name.includes("exercise")) return "🎨";
-    return "📌";
+    return text
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, "")
+      .trim()
+      .replace(/\s+/g, "-")
+      .slice(0, 60);
   }
 
   return (
-    <div className="flex-1 overflow-y-auto scrollbar-hide min-h-0 py-6">
-      <div className="prose prose-invert max-w-none">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="h-8 w-1 bg-blue-500 rounded-full"></div>
-          <h2 className="text-lg font-bold text-white m-0">Lesson Content</h2>
-        </div>
-
-        {content && formattedHtml ? (
-          <article className="prose prose-invert max-w-none text-white/90 prose-headings:text-white prose-a:text-blue-300 hover:prose-a:text-blue-200 prose-strong:text-white prose-code:text-blue-200">
-            {toc.length > 0 && (
-              <aside className="mb-6 p-4 rounded-xl bg-white/5 border border-white/10">
-                <div className="text-xs uppercase tracking-wide text-white/60 mb-2">Contents</div>
-                <nav>
-                  <ul className="m-0 p-0 list-none space-y-1">
-                    {toc.map((item) => (
-                      <li key={item.id} className={item.level === 2 ? "pl-0" : item.level === 3 ? "pl-4" : "pl-8"}>
-                        <a href={`#${item.id}`} className="text-white/80 hover:text-white transition-colors">
-                          {item.title}
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                </nav>
-              </aside>
-            )}
-
-            <div dangerouslySetInnerHTML={{ __html: formattedHtml }} />
-          </article>
-        ) : (
-          <div className="text-white/80 leading-relaxed space-y-4 pl-5">
-            <p className="text-base">
-              This is your generated lesson content. Summaries, key points, and interactive elements will appear here.
-            </p>
+    <div className="text-white">
+      {/* Table of Contents */}
+      {toc.length > 0 && (
+        <aside className="sticky top-6 mb-12 p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
+          <div className="text-sm font-bold uppercase tracking-wider text-white/60 mb-4">
+            Table of Contents
           </div>
-        )}
-      </div>
+          <nav className="space-y-2">
+            {toc.map((item, idx) => (
+              <div
+                key={item.id}
+                className={`pl-${item.level === 2 ? "0" : item.level === 3 ? "6" : "12"}`}
+              >
+                <a
+                  href={`#${item.id}`}
+                  className="block py-1 text-white/80 hover:text-white transition-colors"
+                >
+                  {item.level === 2 && (
+                    <span className="font-semibold text-[#c4b5fd] mr-2">
+                      {idx + 1}.
+                    </span>
+                  )}
+                  {item.title}
+                </a>
+              </div>
+            ))}
+          </nav>
+        </aside>
+      )}
+
+      {/* Rendered content */}
+      <div dangerouslySetInnerHTML={{ __html: formattedHtml }} />
     </div>
   );
 }
