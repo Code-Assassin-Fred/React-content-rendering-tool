@@ -6,12 +6,12 @@ import path from "path";
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const GRADE_INTENSITY: Record<string, string> = {
-  "4": "simple, clear, age-appropriate, short sentences",
-  "5": "simple, clear, age-appropriate, short sentences",
-  "6": "medium, longer sentences, slightly advanced vocabulary",
-  "7": "medium, longer sentences, slightly advanced vocabulary",
-  "8": "advanced intermediate, multi-step reasoning",
-  "9": "advanced intermediate, multi-step reasoning",
+  "4": "simple, clear, age-appropriate, short sentences, advanced academic, precise terminology, abstract reasoning",
+  "5": "simple, clear, age-appropriate, short sentences, advanced academic, precise terminology, abstract reasoning",
+  "6": "medium, longer sentences, slightly advanced vocabulary, advanced academic, precise terminology, abstract reasoning",
+  "7": "medium, longer sentences, slightly advanced vocabulary, advanced academic, precise terminology, abstract reasoning",
+  "8": "advanced intermediate, multi-step reasoning, advanced academic, precise terminology, abstract reasoning",
+  "9": "advanced intermediate, multi-step reasoning, advanced academic, precise terminology, abstract reasoning",
   "10": "advanced academic, precise terminology, abstract reasoning",
   "11": "advanced academic, precise terminology, abstract reasoning",
   "12": "advanced academic, precise terminology, abstract reasoning"
