@@ -1,0 +1,86 @@
+.textbook-body {
+  background: #ffffff;
+  color: #111;
+  padding: 50px;
+  max-width: 900px;
+  margin: auto;
+  font-family: "Georgia", serif;
+  line-height: 1.65;
+}
+
+/* ----------- TITLES ----------- */
+.textbook-body h1 {
+  font-size: 2.2rem;
+  font-weight: 700;
+  margin-top: 2.5rem;
+  margin-bottom: 1.2rem;
+  text-align: center;
+  color: #0b3a75;
+}
+
+.textbook-body h2 {
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  color: #0d4d8b;
+  border-bottom: 2px solid #e5e7eb;
+  padding-bottom: 4px;
+}
+
+.textbook-body h3 {
+  font-size: 1.4rem;
+  font-weight: 600;
+  margin-top: 1.4rem;
+  margin-bottom: 0.8rem;
+  color: #0f548c;
+}
+
+/* ----------- PARAGRAPHS ----------- */
+.textbook-body p {
+  margin: 0.7rem 0;
+  font-size: 1.05rem;
+}
+
+/* ----------- LISTS ----------- */
+.textbook-body ul, 
+.textbook-body ol {
+  margin: 1rem 0 1rem 2rem;
+}
+
+.textbook-body li {
+  margin: 0.4rem 0;
+}
+
+/* ----------- CALLOUT BOXES ----------- */
+.textbook-box {
+  background: #f0f8ff;
+  border-left: 4px solid #0d6efd;
+  padding: 15px;
+  margin: 1.5rem 0;
+  border-radius: 6px;
+}
+
+/* ----------- IMAGES ----------- */
+.textbook-body img {
+  max-width: 100%;
+  display: block;
+  margin: 1.5rem auto;
+}
+
+/* ----------- CODE BLOCKS ----------- */
+.textbook-body pre {
+  background: #f3f4f6;
+  padding: 12px;
+  border-radius: 6px;
+  overflow-x: auto;
+}
+
+/* ----------- PAGE FEEL ----------- */
+.textbook-page {
+  background: white;
+  padding: 40px;
+  margin: 20px auto;
+  border-radius: 12px;
+  box-shadow: 0px 0px 10px rgba(0,0,0,0.06);
+}

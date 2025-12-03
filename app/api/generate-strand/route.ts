@@ -3,9 +3,6 @@ import OpenAI from "openai";
 import fs from "fs";
 import path from "path";
 
-// Remove runtime export for Next.js 16 compatibility
-// export const runtime = "nodejs";
-
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const GRADE_INTENSITY: Record<string, string> = {
@@ -26,7 +23,6 @@ const loadContentJson = () => {
   return JSON.parse(raw);
 };
 
-// ---- NEW STRUCTURED STUDENT PROMPT ----
 const studentPrompt = (
   grade: string,
   subject: string,
@@ -82,7 +78,6 @@ Strand Outcomes: ${outcomesText}
 Write the full structured content now.`;
 };
 
-// ---- NEW STRUCTURED TEACHER PROMPT ----
 const teacherPrompt = (
   grade: string,
   subject: string,
@@ -202,8 +197,8 @@ export async function POST(req: Request) {
       const student = await callOpenAI(studentPrompt(grade, subject, strand, subName, outcomes));
       const teacher = await callOpenAI(teacherPrompt(grade, subject, strand, subName, outcomes));
 
-      student_html.push(`<h2>${subName}</h2>` + student);
-      teacher_html.push(`<h2>${subName}</h2>` + teacher);
+      student_html.push(student);
+      teacher_html.push(teacher);
     }
 
     return NextResponse.json({

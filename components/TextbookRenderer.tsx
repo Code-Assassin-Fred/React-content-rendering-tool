@@ -7,28 +7,23 @@ interface Props {
 }
 
 export default function TextbookRenderer({ content }: Props) {
-  // Prepare sanitized HTML once per content change
   const { formattedHtml, toc } = useMemo(() => {
     let html = content?.trim();
-    if (!html) return { formattedHtml: '', toc: [] as Array<{ id: string; title: string; level: number }> };
+    if (!html)
+      return { formattedHtml: "", toc: [] as Array<{ id: string; title: string; level: number }> };
 
-    // Remove stray markdown markers
+    // Strip markdown
     html = html
-      .replace(/\*\*([^*]+)\*\*/g, '$1')
-      .replace(/\*([^*]+)\*/g, '$1')
-      .replace(/__([^_]+)__/g, '$1')
-      .replace(/_([^_]+)_/g, '$1');
+      .replace(/\*\*([^*]+)\*\*/g, "$1")
+      .replace(/\*([^*]+)\*/g, "$1")
+      .replace(/__([^_]+)__/g, "$1")
+      .replace(/_([^_]+)_/g, "$1");
 
-    // 1) Sanitize incoming HTML
     const safe = sanitize(html);
-
-    // 2) Build a transient DOM to restructure headings and build a TOC
-    const container = document.createElement('div');
+    const container = document.createElement("div");
     container.innerHTML = safe;
 
-    // Track heading structure
-    const headings = Array.from(container.querySelectorAll('h1, h2, h3, h4')) as HTMLHeadingElement[];
-    
+    const headings = Array.from(container.querySelectorAll("h1, h2, h3, h4")) as HTMLHeadingElement[];
     let subStrandCount = 0;
     let sectionCount = 0;
     const tocItems: Array<{ id: string; title: string; level: number }> = [];
@@ -36,259 +31,171 @@ export default function TextbookRenderer({ content }: Props) {
 
     headings.forEach((h) => {
       const level = parseInt(h.tagName.substring(1), 10);
-      const text = h.textContent?.trim() || '';
+      const text = h.textContent?.trim() || "";
 
-      // Detect SubStrands (H2 level - major topics)
-      if (level === 2 || level === 1) {
+      // SubStrand H2
+      if (level === 2) {
         subStrandCount += 1;
         sectionCount = 0;
         const id = `substrand-${subStrandCount}-${slugify(text)}`;
-        
-        // Create a card wrapper for this substrand
-        const card = document.createElement('div');
-        card.className = 'mb-8 rounded-xl bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-white/10 overflow-hidden shadow-lg';
-        card.id = id;
-        
-        // Create header section with gradient
-        const header = document.createElement('div');
-        header.className = 'bg-gradient-to-r from-blue-600/20 to-purple-600/20 border-b border-white/10 p-5';
-        
-        const titleWrapper = document.createElement('div');
-        titleWrapper.className = 'flex items-center gap-3';
-        
-        const badge = document.createElement('div');
-        badge.className = 'flex items-center justify-center w-10 h-10 rounded-lg bg-blue-500/20 text-blue-300 font-bold text-sm border border-blue-400/30';
-        badge.textContent = `${subStrandCount}`;
-        
-        const title = document.createElement('h2');
-        title.className = 'text-2xl font-bold text-white m-0';
-        title.textContent = text;
-        
-        titleWrapper.appendChild(badge);
-        titleWrapper.appendChild(title);
-        header.appendChild(titleWrapper);
-        card.appendChild(header);
-        
-        // Create content container for this substrand
-        const contentContainer = document.createElement('div');
-        contentContainer.className = 'p-6 space-y-6';
-        card.appendChild(contentContainer);
-        
-        // Replace the heading with the card
-        h.replaceWith(card);
-        currentSubStrandCard = contentContainer;
-        
+
+        // Only create card if not already wrapped
+        if (!h.parentElement?.classList.contains("substrand-card")) {
+          const card = document.createElement("div");
+          card.className =
+            "substrand-card mb-8 rounded-xl bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-white/10 overflow-hidden shadow-lg";
+          card.id = id;
+
+          // Header
+          const header = document.createElement("div");
+          header.className = "bg-gradient-to-r from-blue-600/20 to-purple-600/20 border-b border-white/10 p-5 flex items-center gap-3";
+
+          const badge = document.createElement("div");
+          badge.className = "flex items-center justify-center w-10 h-10 rounded-lg bg-blue-500/20 text-blue-300 font-bold text-sm border border-blue-400/30";
+          badge.textContent = `${subStrandCount}`;
+
+          const title = document.createElement("h2");
+          title.className = "text-2xl font-bold text-white m-0";
+          title.textContent = text;
+
+          header.appendChild(badge);
+          header.appendChild(title);
+          card.appendChild(header);
+
+          const contentContainer = document.createElement("div");
+          contentContainer.className = "p-6 space-y-6 max-h-[70vh] overflow-y-auto";
+          card.appendChild(contentContainer);
+
+          h.replaceWith(card);
+          currentSubStrandCard = contentContainer;
+        } else {
+          currentSubStrandCard = h.parentElement.querySelector(":scope > div:last-child") as HTMLDivElement;
+        }
+
         tocItems.push({ id, title: text, level: 2 });
         return;
       }
 
-      // Sections within substrand (H3 - Learning Outcomes, Key Concepts, etc.)
+      // Section H3
       if (level === 3) {
         sectionCount += 1;
         const id = `section-${subStrandCount}-${sectionCount}-${slugify(text)}`;
-        
-        // Create section card
-        const sectionCard = document.createElement('div');
-        sectionCard.className = 'rounded-lg bg-white/5 border border-white/10 p-4';
+
+        const sectionCard = document.createElement("div");
+        sectionCard.className = "rounded-lg bg-white/5 border border-white/10 p-4";
         sectionCard.id = id;
-        
-        const sectionTitle = document.createElement('h3');
-        sectionTitle.className = 'text-lg font-semibold text-sky-300 mb-3 flex items-center gap-2';
-        
-        // Add icon based on section type
+
+        const sectionTitle = document.createElement("h3");
+        sectionTitle.className = "text-lg font-semibold text-sky-300 mb-3 flex items-center gap-2";
+
         const icon = getSectionIcon(text);
         if (icon) {
-          const iconSpan = document.createElement('span');
+          const iconSpan = document.createElement("span");
           iconSpan.innerHTML = icon;
           sectionTitle.appendChild(iconSpan);
         }
-        
-        const titleText = document.createElement('span');
+
+        const titleText = document.createElement("span");
         titleText.textContent = text;
         sectionTitle.appendChild(titleText);
-        
+
         sectionCard.appendChild(sectionTitle);
-        
-        // Create content area for this section
-        const sectionContent = document.createElement('div');
-        sectionContent.className = 'space-y-2';
+
+        const sectionContent = document.createElement("div");
+        sectionContent.className = "space-y-2";
         sectionCard.appendChild(sectionContent);
-        
-        // Append to current substrand card or container
+
         if (currentSubStrandCard) {
           currentSubStrandCard.appendChild(sectionCard);
         } else {
           h.replaceWith(sectionCard);
         }
-        
-        // Store reference to append following content
-        h.setAttribute('data-section-container', 'true');
+
         h.replaceWith(sectionCard);
-        
         tocItems.push({ id, title: text, level: 3 });
         return;
       }
 
-      // Subsections (H4)
+      // Subsection H4
       if (level === 4) {
-        h.classList.add('text-base','font-medium','text-teal-300','mt-3','mb-2');
+        h.classList.add("text-base", "font-medium", "text-teal-300", "mt-3", "mb-2");
         return;
       }
     });
 
-    // Helper function to get section icons
-    function getSectionIcon(sectionName: string): string {
-      const name = sectionName.toLowerCase();
-      if (name.includes('learning outcomes') || name.includes('outcome')) {
-        return '🎯';
-      }
-      if (name.includes('key concepts') || name.includes('concept')) {
-        return '💡';
-      }
-      if (name.includes('explanation') || name.includes('content')) {
-        return '📖';
-      }
-      if (name.includes('example')) {
-        return '✏️';
-      }
-      if (name.includes('activity') || name.includes('exercise')) {
-        return '🎨';
-      }
-      return '📌';
-    }
-
-    // 3) Wrap images and tables to be responsive
-    container.querySelectorAll('img').forEach((img) => {
-      img.classList.add('rounded-md','mx-auto','block','max-w-full','h-auto');
-      const wrapper = document.createElement('figure');
-      wrapper.className = 'my-4';
+    // Style images
+    container.querySelectorAll("img").forEach((img) => {
+      img.classList.add("rounded-md", "mx-auto", "block", "max-w-full", "h-auto");
+      const wrapper = document.createElement("figure");
+      wrapper.className = "my-4";
       img.parentElement?.insertBefore(wrapper, img);
       wrapper.appendChild(img);
 
-      if (img.getAttribute('alt') && !wrapper.querySelector('figcaption')) {
-        const cap = document.createElement('figcaption');
-        cap.className = 'text-xs text-white/60 mt-2 text-center';
-        cap.textContent = img.getAttribute('alt') || '';
+      if (img.getAttribute("alt") && !wrapper.querySelector("figcaption")) {
+        const cap = document.createElement("figcaption");
+        cap.className = "text-xs text-white/60 mt-2 text-center";
+        cap.textContent = img.getAttribute("alt") || "";
         wrapper.appendChild(cap);
       }
     });
 
-    container.querySelectorAll('table').forEach((table) => {
-      const scroll = document.createElement('div');
-      scroll.className = 'overflow-x-auto my-4';
+    // Style tables
+    container.querySelectorAll("table").forEach((table) => {
+      const scroll = document.createElement("div");
+      scroll.className = "overflow-x-auto my-4";
       table.parentElement?.insertBefore(scroll, table);
       scroll.appendChild(table);
 
-      table.classList.add('w-full','text-left','border-collapse');
-      const thead = table.querySelector('thead');
-      if (thead) thead.classList.add('bg-white/5');
-      table.querySelectorAll('th').forEach(th => th.classList.add('px-3','py-2','font-semibold','text-white','border-b','border-white/10'));
-      table.querySelectorAll('td').forEach(td => td.classList.add('px-3','py-2','text-white/80','border-b','border-white/10'));
-      // Zebra rows
-      const rows = Array.from(table.querySelectorAll('tbody tr'));
-      rows.forEach((tr, idx) => {
-        if (idx % 2 === 1) tr.classList.add('bg-white/[0.03]');
+      table.classList.add("w-full", "text-left", "border-collapse");
+      const thead = table.querySelector("thead");
+      if (thead) thead.classList.add("bg-white/5");
+      table.querySelectorAll("th").forEach((th) => th.classList.add("px-3", "py-2", "font-semibold", "text-white", "border-b", "border-white/10"));
+      table.querySelectorAll("td").forEach((td) => td.classList.add("px-3", "py-2", "text-white/80", "border-b", "border-white/10"));
+      Array.from(table.querySelectorAll("tbody tr")).forEach((tr, idx) => {
+        if (idx % 2 === 1) tr.classList.add("bg-white/[0.03]");
       });
     });
 
-    // 4) Paragraphs and lists spacing for readability
-    container.querySelectorAll('p').forEach((p) => {
-      p.classList.add('my-3','leading-relaxed','text-white/90');
-    });
-    container.querySelectorAll('ul').forEach((ul) => {
-      ul.classList.add('list-disc','pl-6','my-3','space-y-2');
-    });
-    container.querySelectorAll('ol').forEach((ol) => {
-      ol.classList.add('list-decimal','pl-6','my-3','space-y-2');
-    });
-    container.querySelectorAll('li').forEach((li) => {
-      li.classList.add('leading-relaxed');
-    });
-
-    // 5) Blockquotes and horizontal rules
-    container.querySelectorAll('blockquote').forEach((bq) => {
-      bq.classList.add('border-l-2','border-blue-500/40','pl-4','italic','text-white/80','my-4');
-    });
-    container.querySelectorAll('hr').forEach((hr) => {
-      hr.classList.add('my-6','border-white/10');
-    });
-
-    // 6) Code blocks (if any)
-    container.querySelectorAll('pre').forEach((pre) => {
-      pre.classList.add('bg-white/5','rounded-lg','p-3','overflow-x-auto','my-4');
-    });
-    container.querySelectorAll('code').forEach((code) => {
-      code.classList.add('text-blue-200');
-    });
-
-    // 7) Lightweight callouts for pedagogy
-    const calloutMap: Record<string, { wrapper: string; label: string }> = {
-      'note:': { wrapper: 'bg-cyan-900/20 border-cyan-600/30', label: 'Note' },
-      'tip:': { wrapper: 'bg-sky-900/20 border-sky-600/30', label: 'Tip' },
-      'example:': { wrapper: 'bg-blue-900/20 border-blue-600/30', label: 'Example' },
-      'key takeaway:': { wrapper: 'bg-emerald-900/20 border-emerald-600/30', label: 'Key Takeaway' },
-      'exercise:': { wrapper: 'bg-amber-900/20 border-amber-600/30', label: 'Exercise' },
-      'practice:': { wrapper: 'bg-amber-900/20 border-amber-600/30', label: 'Practice' },
-      'question:': { wrapper: 'bg-violet-900/20 border-violet-600/30', label: 'Question' },
-    };
-
-    Array.from(container.querySelectorAll('p')).forEach((p) => {
-      const raw = (p.textContent || '').trim();
-      const lower = raw.toLowerCase();
-      const key = Object.keys(calloutMap).find(k => lower.startsWith(k));
-      if (!key) return;
-      const cfg = calloutMap[key];
-
-      // Extract remaining text after the prefix
-      const content = raw.substring(key.length).trim();
-      const box = document.createElement('div');
-      box.className = `my-4 p-3 rounded-lg border ${cfg.wrapper}`;
-
-      const title = document.createElement('div');
-      title.className = 'text-xs font-semibold uppercase tracking-wide text-white/70 mb-1';
-      title.textContent = cfg.label;
-
-      const body = document.createElement('div');
-      body.className = 'text-white/90';
-      body.textContent = content;
-
-      box.appendChild(title);
-      box.appendChild(body);
-      p.replaceWith(box);
-    });
+    // Paragraphs & lists
+    container.querySelectorAll("p").forEach((p) => p.classList.add("my-3", "leading-relaxed", "text-white/90"));
+    container.querySelectorAll("ul").forEach((ul) => ul.classList.add("list-disc", "pl-6", "my-3", "space-y-2"));
+    container.querySelectorAll("ol").forEach((ol) => ol.classList.add("list-decimal", "pl-6", "my-3", "space-y-2"));
+    container.querySelectorAll("li").forEach((li) => li.classList.add("leading-relaxed"));
 
     return { formattedHtml: container.innerHTML, toc: tocItems };
   }, [content]);
 
   function slugify(text: string) {
-    return text
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, '')
-      .trim()
-      .replace(/\s+/g, '-')
-      .slice(0, 60);
+    return text.toLowerCase().replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").slice(0, 60);
+  }
+
+  function getSectionIcon(sectionName: string): string {
+    const name = sectionName.toLowerCase();
+    if (name.includes("learning outcomes") || name.includes("outcome")) return "🎯";
+    if (name.includes("key concepts") || name.includes("concept")) return "💡";
+    if (name.includes("explanation") || name.includes("content")) return "📖";
+    if (name.includes("example")) return "✏️";
+    if (name.includes("activity") || name.includes("exercise")) return "🎨";
+    return "📌";
   }
 
   return (
     <div className="flex-1 overflow-y-auto scrollbar-hide min-h-0 py-6">
       <div className="prose prose-invert max-w-none">
-        {/* Content Section Header */}
         <div className="flex items-center gap-2 mb-4">
           <div className="h-8 w-1 bg-blue-500 rounded-full"></div>
           <h2 className="text-lg font-bold text-white m-0">Lesson Content</h2>
         </div>
 
-        {/* Main Content Area */}
         {content && formattedHtml ? (
           <article className="prose prose-invert max-w-none text-white/90 prose-headings:text-white prose-a:text-blue-300 hover:prose-a:text-blue-200 prose-strong:text-white prose-code:text-blue-200">
-            {/* Contents */}
             {toc.length > 0 && (
               <aside className="mb-6 p-4 rounded-xl bg-white/5 border border-white/10">
                 <div className="text-xs uppercase tracking-wide text-white/60 mb-2">Contents</div>
                 <nav>
                   <ul className="m-0 p-0 list-none space-y-1">
                     {toc.map((item) => (
-                      <li key={item.id} className={item.level === 2 ? 'pl-0' : item.level === 3 ? 'pl-4' : 'pl-8'}>
+                      <li key={item.id} className={item.level === 2 ? "pl-0" : item.level === 3 ? "pl-4" : "pl-8"}>
                         <a href={`#${item.id}`} className="text-white/80 hover:text-white transition-colors">
                           {item.title}
                         </a>
@@ -306,22 +213,6 @@ export default function TextbookRenderer({ content }: Props) {
             <p className="text-base">
               This is your generated lesson content. Summaries, key points, and interactive elements will appear here.
             </p>
-            <div className="border-l-2 border-blue-500/30 pl-4 py-2">
-              <p className="text-white/60 italic">
-                &quot;Key concepts and explanations will be displayed in an easy-to-read format.&quot;
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 mt-6">
-              <div className="p-4 rounded-lg bg-white/5 border border-white/10">
-                <div className="text-blue-300 text-sm font-semibold mb-2">Key Point 1</div>
-                <div className="text-white/70 text-sm">Important concepts highlighted</div>
-              </div>
-              <div className="p-4 rounded-lg bg-white/5 border border-white/10">
-                <div className="text-blue-400 text-sm font-semibold mb-2">Key Point 2</div>
-                <div className="text-white/70 text-sm">Easy to understand format</div>
-              </div>
-            </div>
           </div>
         )}
       </div>
